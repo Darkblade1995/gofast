@@ -1,0 +1,20 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+    - gosec
+    - unused
+    - ineffassign
+
+formatters:
+  enable:
+    - goimports
+
+run:
+  timeout: 5m
+
+issues:
+  exclude-dirs:
+    - examples/minimal
