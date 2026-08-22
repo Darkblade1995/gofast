@@ -18,6 +18,7 @@ const (
 	ErrCodeNotFound         ErrorCode = "NOT_FOUND"
 	ErrCodeConflict         ErrorCode = "CONFLICT"
 	ErrCodeForbidden        ErrorCode = "FORBIDDEN"
+	ErrCodeUnauthorized     ErrorCode = "UNAUTHORIZED"
 	ErrCodeUnsupportedMedia ErrorCode = "UNSUPPORTED_MEDIA_TYPE"
 )
 

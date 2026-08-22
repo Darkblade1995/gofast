@@ -2,13 +2,30 @@ package codegen
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestGenerateAndWrite(t *testing.T) {
-	sourcePath := "../../examples/minimal/main.go"
+	// This test copies main.go into a temporary directory before
+	// generating, rather than running GenerateAndWrite directly
+	// against examples/minimal/main.go. Generating in place would
+	// write real .gen.go files into the example — files meant to
+	// be committed to the repository — and then this test's
+	// cleanup would delete them, corrupting the example for
+	// anyone else who runs `go test ./...` afterward.
+	srcContent, err := os.ReadFile("../../examples/minimal/main.go")
+	if err != nil {
+		t.Fatalf("failed to read source fixture: %v", err)
+	}
 
-	outPaths, err := GenerateAndWrite(sourcePath)
+	tmpDir := t.TempDir()
+	tmpMainPath := filepath.Join(tmpDir, "main.go")
+	if err := os.WriteFile(tmpMainPath, srcContent, 0o644); err != nil {
+		t.Fatalf("failed to write temp source file: %v", err)
+	}
+
+	outPaths, err := GenerateAndWrite(tmpMainPath)
 	if err != nil {
 		t.Fatalf("GenerateAndWrite failed: %v", err)
 	}
@@ -17,12 +34,6 @@ func TestGenerateAndWrite(t *testing.T) {
 	}
 
 	for _, outPath := range outPaths {
-		defer func(p string) {
-			if err := os.Remove(p); err != nil {
-				t.Logf("cleanup: failed to remove %s: %v", p, err)
-			}
-		}(outPath)
-
 		// #nosec G304 -- outPath was just produced by
 		// GenerateAndWrite in this same test, not from
 		// untrusted input.
@@ -30,7 +41,9 @@ func TestGenerateAndWrite(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read generated file %s: %v", outPath, err)
 		}
-
 		t.Logf("generated file at %s:\n%s", outPath, content)
 	}
+	// No manual cleanup needed — t.TempDir() removes tmpDir (and
+	// everything GenerateAndWrite wrote inside it) automatically
+	// when the test finishes.
 }

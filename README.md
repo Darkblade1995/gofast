@@ -261,6 +261,7 @@ module) --check)
 | Engineering | `golangci-lint`, `govulncheck`, `-race`, all clean | done |
 | Engineering | fuzz-tested AST parser (2M+ execs, 0 panics) | done |
 | Engineering | CPU/memory profiling documented | done |
+| Authentication | JWT middleware (stateless validation) | done |
 | Streaming responses | — | not built (see roadmap) |
 | Multipart/form-data | — | not built (see roadmap) |
 | Dependency injection container | — | intentionally not built (ADR 0006) |
@@ -311,6 +312,7 @@ including the ones that constrain what GoFast can honestly claim:
 | [0005](docs/adr/0005-semantic-versioning-policy-pre-v1.md) | Semantic versioning policy before v1.0.0 |
 | [0006](docs/adr/0006-dependency-injection-via-explicit-closures.md) | Dependency injection via explicit closures, no container |
 | [0007](docs/adr/0007-migration-path-from-gin-echo-huma.md) | Migration path from Gin/Echo/Huma via `http.Handler` mounting |
+| [0008](docs/adr/0008-jwt-auth-context-propagation.md) | JWT auth: stateless validation and context propagation |
 
 ## Project status
 

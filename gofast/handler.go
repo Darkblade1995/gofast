@@ -43,6 +43,16 @@ type HandlerInfo struct {
 	OutType reflect.Type
 }
 
+// Wrap applies an http middleware to this HandlerInfo's underlying
+// function, preserving InType and OutType so Router.Register can
+// still generate accurate OpenAPI documentation. Use this to apply
+// per-route middleware (e.g. AuthMiddleware) without affecting
+// other routes registered on the same Router.
+func (h HandlerInfo) Wrap(mw func(http.Handler) http.Handler) HandlerInfo {
+	h.Func = mw(h.Func).ServeHTTP
+	return h
+}
+
 // Handler wraps a business function into a ready-to-register HTTP
 // handler. It decodes the JSON request body into In, applies path
 // and query binding if In implements PathBinder or QueryBinder,

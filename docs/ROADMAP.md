@@ -79,15 +79,38 @@ review. Items move between sections as they get resolved.
 - [x] ADR 0006 — Dependency injection via explicit closures
 - [x] ADR 0007 — Migration path from Gin/Echo/Huma
 
+## Phase 7 — Production auth & operability - IN PROGRESS
+- [x] ADR 0008 — JWT stateless validation, context propagation
+- [x] AuthMiddleware — HMAC JWT validation (missing/malformed/
+      invalid-signature/expired all return 401 UNAUTHORIZED)
+- [x] ClaimsFromContext — typed, collision-safe context key
+- [x] ErrCodeUnauthorized added to error taxonomy
+- [x] HandlerInfo.Wrap — per-route middleware composition, used
+      to apply AuthMiddleware to individual routes without
+      affecting others registered on the same Router
+- [x] Verified end-to-end in examples/minimal (no token → 401,
+      /login issues real signed JWT, valid token → 200 with
+      correct path-bound data)
+- [ ] A.1b — Refresh tokens (separate ADR — new endpoint, distinct
+      expiration policy, own storage question)
+- [ ] A.1c — Revocation / blacklist (separate ADR — first time
+      GoFast would depend on external state, e.g. Redis)
+- [ ] A.2 — Rate limiting (golang.org/x/time/rate)
+- [ ] A.3 — Lifespan hooks (startup/shutdown)
+
+
+
 ## Future enhancements (revisit if conditions change)
 - [ ] HTTP QUERY method support — IETF draft, not finalized
 
 ## Backlog — explicitly out of scope for V1
+## Backlog — explicitly out of scope for V1
 - [ ] Streaming responses
 - [ ] Content negotiation (multipart, form-data)
 - [ ] Built-in TestClient
-- [ ] Lifespan/startup-shutdown hooks
 - [ ] `any`/`interface{}` field support in codegen
+- [ ] WebSockets
+- [ ] Background tasks
 
 ## Open decisions (deferred, not avoided)
 - [ ] Vendor Swagger UI assets (go:embed) vs CDN-loaded (current)
@@ -103,3 +126,11 @@ review. Items move between sections as they get resolved.
   gets revisited via a new ADR, not edited
 - Route registration is not concurrency-safe — documented via
   ADR 0002 as an intentional startup-only design constraint
+- Manifest does not verify that its recorded "generated" files
+  still exist on disk before skipping regeneration — if a
+  .gen.go file is deleted externally (manually, by another tool,
+  or by test cleanup) but the source .go file is unchanged, `gofast
+  generate` reports "unchanged, skipping" instead of noticing the
+  output is missing and regenerating it. Discovered while fixing
+  TestGenerateAndWrite writing into examples/minimal instead of a
+  temp directory (see commit history).

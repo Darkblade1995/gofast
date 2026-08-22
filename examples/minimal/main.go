@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"gofast/gofast"
 )
 
@@ -18,8 +20,29 @@ type LoginOutput struct {
 	Token string `json:"token"`
 }
 
+// jwtSecret is hardcoded here only because this is a minimal,
+// disposable example. Real applications must load this from an
+// environment variable or secrets manager — never commit a real
+// secret to source control.
+var jwtSecret = []byte("example-secret-do-not-use-in-production")
+
 func Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
-	return LoginOutput{Token: "fake-token-for-" + in.Email}, nil
+	claims := jwt.MapClaims{
+		"sub": in.Email,
+		"exp": time.Now().Add(time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	signed, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return LoginOutput{}, gofast.NewBusinessError(
+			gofast.ErrCodeInternal,
+			http.StatusInternalServerError,
+			"failed to issue token",
+		)
+	}
+
+	return LoginOutput{Token: signed}, nil
 }
 
 type GetAccountInput struct {
@@ -66,7 +89,7 @@ func main() {
 		gofast.WithAllowedOrigins("http://localhost:5173"),
 	)
 	router.Register("POST", "/login", gofast.Handler(Login))
-	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount))
+	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret)))
 	router.Register("GET", "/transactions", gofast.Handler(ListTransactions))
 
 	router.ServeOpenAPI("/openapi.json", "GoFast Example", "1.0.0")
