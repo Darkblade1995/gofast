@@ -313,6 +313,7 @@ including the ones that constrain what GoFast can honestly claim:
 | [0006](docs/adr/0006-dependency-injection-via-explicit-closures.md) | Dependency injection via explicit closures, no container |
 | [0007](docs/adr/0007-migration-path-from-gin-echo-huma.md) | Migration path from Gin/Echo/Huma via `http.Handler` mounting |
 | [0008](docs/adr/0008-jwt-auth-context-propagation.md) | JWT auth: stateless validation and context propagation |
+| [0009](docs/adr/0009-refresh-tokens-stateless-no-rotation.md) | Refresh tokens: stateless, no rotation |
 
 ## Project status
 

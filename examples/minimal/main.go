@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-
 	"gofast/gofast"
 )
 
@@ -17,7 +15,8 @@ type LoginInput struct {
 }
 
 type LoginOutput struct {
-	Token string `json:"token"`
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // jwtSecret is hardcoded here only because this is a minimal,
@@ -27,22 +26,25 @@ type LoginOutput struct {
 var jwtSecret = []byte("example-secret-do-not-use-in-production")
 
 func Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
-	claims := jwt.MapClaims{
-		"sub": in.Email,
-		"exp": time.Now().Add(time.Hour).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	signed, err := token.SignedString(jwtSecret)
+	accessToken, err := gofast.IssueAccessToken(jwtSecret, in.Email, time.Hour)
 	if err != nil {
 		return LoginOutput{}, gofast.NewBusinessError(
 			gofast.ErrCodeInternal,
 			http.StatusInternalServerError,
-			"failed to issue token",
+			"failed to issue access token",
 		)
 	}
 
-	return LoginOutput{Token: signed}, nil
+	refreshToken, err := gofast.IssueRefreshToken(jwtSecret, in.Email, 7*24*time.Hour)
+	if err != nil {
+		return LoginOutput{}, gofast.NewBusinessError(
+			gofast.ErrCodeInternal,
+			http.StatusInternalServerError,
+			"failed to issue refresh token",
+		)
+	}
+
+	return LoginOutput{Token: accessToken, RefreshToken: refreshToken}, nil
 }
 
 type GetAccountInput struct {
@@ -89,6 +91,7 @@ func main() {
 		gofast.WithAllowedOrigins("http://localhost:5173"),
 	)
 	router.Register("POST", "/login", gofast.Handler(Login))
+	router.Register("POST", "/refresh", gofast.RefreshHandler(jwtSecret, time.Hour))
 	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret)))
 	router.Register("GET", "/transactions", gofast.Handler(ListTransactions))
 

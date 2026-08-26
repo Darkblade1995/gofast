@@ -91,8 +91,13 @@ review. Items move between sections as they get resolved.
 - [x] Verified end-to-end in examples/minimal (no token → 401,
       /login issues real signed JWT, valid token → 200 with
       correct path-bound data)
-- [ ] A.1b — Refresh tokens (separate ADR — new endpoint, distinct
-      expiration policy, own storage question)
+- [x] A.1b — Refresh tokens (ADR 0009): stateless, HMAC-signed,
+      distinguished by a "type" claim (access vs refresh).
+      IssueAccessToken, IssueRefreshToken, RefreshHandler.
+      AuthMiddleware now rejects refresh tokens; RefreshHandler
+      rejects access tokens — verified in both directions, unit
+      tests and end-to-end via examples/minimal (/refresh).
+      No rotation, no revocation — explicitly deferred to A.1c.
 - [ ] A.1c — Revocation / blacklist (separate ADR — first time
       GoFast would depend on external state, e.g. Redis)
 - [ ] A.2 — Rate limiting (golang.org/x/time/rate)
