@@ -2,6 +2,8 @@ package gofast
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -15,6 +17,7 @@ import (
 type Claims struct {
 	Subject string
 	Expires int64
+	JTI     string
 }
 
 // claimsContextKey is an unexported type used as a context key.
@@ -41,6 +44,18 @@ const (
 	tokenTypeRefresh tokenType = "refresh"
 )
 
+// generateJTI returns a random 128-bit hex-encoded token
+// identifier, unique per issued token. Used so ADR 0010's
+// TokenRevoker can target a specific token for revocation without
+// needing the token's full signature as a lookup key.
+func generateJTI() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
 // IssueAccessToken creates a signed access token for the given
 // subject, valid for ttl. Access tokens are meant to be sent on
 // every request to a protected route (see AuthMiddleware).
@@ -52,27 +67,37 @@ func IssueAccessToken(secret []byte, subject string, ttl time.Duration) (string,
 // subject, valid for ttl (typically much longer than an access
 // token's). A refresh token is only valid against RefreshHandler
 // — AuthMiddleware rejects it. See ADR 0009 for the stateless,
-// no-rotation design of A.1b: this token cannot be revoked before
-// its natural expiration, so ttl should be chosen deliberately.
+// no-rotation design of A.1b, and ADR 0010 for how a TokenRevoker
+// can invalidate a specific token by its jti before this
+// expiration is reached.
 func IssueRefreshToken(secret []byte, subject string, ttl time.Duration) (string, error) {
 	return issueToken(secret, subject, tokenTypeRefresh, ttl)
 }
 
 func issueToken(secret []byte, subject string, typ tokenType, ttl time.Duration) (string, error) {
+	jti, err := generateJTI()
+	if err != nil {
+		return "", err
+	}
 	claims := jwt.MapClaims{
 		"sub":  subject,
 		"type": string(typ),
+		"jti":  jti,
 		"exp":  time.Now().Add(ttl).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(secret)
 }
 
-// parseToken validates signature and expiration, and confirms the
-// "type" claim matches expected. Shared by AuthMiddleware and
-// RefreshHandler so both enforce identical signature/expiration
+// parseToken validates signature and expiration, confirms the
+// "type" claim matches expected, and — if revoker is non-nil —
+// confirms the token's jti has not been revoked. Shared by
+// AuthMiddleware and RefreshHandler so both enforce identical
 // checks and differ only in which token type they accept.
-func parseToken(secret []byte, rawToken string, expected tokenType) (Claims, error) {
+//
+// See ADR 0010: a revocation-check error is treated as "invalid",
+// not "valid" — fail-closed, not fail-open.
+func parseToken(ctx context.Context, secret []byte, rawToken string, expected tokenType, revoker TokenRevoker) (Claims, error) {
 	token, err := jwt.Parse(rawToken, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
@@ -100,6 +125,17 @@ func parseToken(secret []byte, rawToken string, expected tokenType) (Claims, err
 	if exp, ok := mapClaims["exp"].(float64); ok {
 		claims.Expires = int64(exp)
 	}
+	if jti, ok := mapClaims["jti"].(string); ok {
+		claims.JTI = jti
+	}
+
+	if revoker != nil {
+		revoked, err := revoker.IsRevoked(ctx, claims.JTI)
+		if err != nil || revoked {
+			return Claims{}, jwt.ErrTokenInvalidClaims
+		}
+	}
+
 	return claims, nil
 }
 
@@ -113,11 +149,12 @@ func bearerToken(r *http.Request) (string, bool) {
 }
 
 // AuthMiddleware returns an http middleware that validates access
-// tokens signed with HMAC using the given secret. See ADR 0008 for
-// the failure-mode table (401 for missing/malformed/invalid/
-// expired tokens) and ADR 0009 for why a refresh token — even a
-// validly signed, unexpired one — is also rejected here.
-func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
+// tokens signed with HMAC using the given secret. revoker is
+// optional — pass nil to disable revocation checking entirely,
+// preserving A.1a/A.1b's original stateless behavior. See ADR 0008
+// for the failure-mode table, ADR 0009 for why refresh tokens are
+// also rejected here, and ADR 0010 for revocation.
+func AuthMiddleware(secret []byte, revoker TokenRevoker) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rawToken, ok := bearerToken(r)
@@ -126,9 +163,9 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 				return
 			}
 
-			claims, err := parseToken(secret, rawToken, tokenTypeAccess)
+			claims, err := parseToken(r.Context(), secret, rawToken, tokenTypeAccess, revoker)
 			if err != nil {
-				writeError(w, http.StatusUnauthorized, ErrCodeUnauthorized, "invalid, expired, or wrong-type token", nil)
+				writeError(w, http.StatusUnauthorized, ErrCodeUnauthorized, "invalid, expired, revoked, or wrong-type token", nil)
 				return
 			}
 
@@ -151,19 +188,20 @@ type RefreshOutput struct {
 }
 
 // RefreshHandler returns a ready-to-register HandlerInfo that
-// exchanges a valid, unexpired refresh token for a new access
-// token. accessTTL controls the lifetime of the newly issued
-// access token. See ADR 0009 for why this does not accept access
-// tokens, does not rotate the refresh token, and cannot revoke a
-// leaked refresh token before its own expiration.
-func RefreshHandler(secret []byte, accessTTL time.Duration) HandlerInfo {
+// exchanges a valid, unexpired, non-revoked refresh token for a
+// new access token. accessTTL controls the lifetime of the newly
+// issued access token. revoker is optional — pass nil to disable
+// revocation checking. See ADR 0009 for why this does not accept
+// access tokens and does not rotate the refresh token, and ADR
+// 0010 for revocation.
+func RefreshHandler(secret []byte, accessTTL time.Duration, revoker TokenRevoker) HandlerInfo {
 	return Handler(func(ctx context.Context, in RefreshInput) (RefreshOutput, error) {
-		claims, err := parseToken(secret, in.RefreshToken, tokenTypeRefresh)
+		claims, err := parseToken(ctx, secret, in.RefreshToken, tokenTypeRefresh, revoker)
 		if err != nil {
 			return RefreshOutput{}, NewBusinessError(
 				ErrCodeUnauthorized,
 				http.StatusUnauthorized,
-				"invalid, expired, or wrong-type refresh token",
+				"invalid, expired, revoked, or wrong-type refresh token",
 			)
 		}
 

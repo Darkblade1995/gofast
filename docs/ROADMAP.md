@@ -98,8 +98,20 @@ review. Items move between sections as they get resolved.
       rejects access tokens — verified in both directions, unit
       tests and end-to-end via examples/minimal (/refresh).
       No rotation, no revocation — explicitly deferred to A.1c.
-- [ ] A.1c — Revocation / blacklist (separate ADR — first time
-      GoFast would depend on external state, e.g. Redis)
+- [x] A.1c — Token revocation / blacklist (ADR 0010): TokenRevoker
+      interface in gofast/ (jti-based, per-token), zero new core
+      dependencies. Production Redis implementation in
+      gofast/revocation/redis (separate importable package —
+      SETEX-equivalent TTL, no manual cleanup needed).
+      AuthMiddleware and RefreshHandler both accept an optional
+      revoker; nil preserves A.1a/A.1b's exact original stateless
+      behavior. Fail-closed on revocation-check errors, verified
+      live (Redis stopped → 401, not 200). Verified end-to-end via
+      examples/minimal (/logout revokes the active access token; a
+      second request with the same token is rejected). Full test
+      coverage: unit tests with an in-memory fake revoker
+      (auth_test.go), integration tests against real Redis
+      (redis_revoker_test.go), and manual end-to-end verification.
 - [ ] A.2 — Rate limiting (golang.org/x/time/rate)
 - [ ] A.3 — Lifespan hooks (startup/shutdown)
 

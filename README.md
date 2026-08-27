@@ -265,6 +265,7 @@ module) --check)
 | Streaming responses | — | not built (see roadmap) |
 | Multipart/form-data | — | not built (see roadmap) |
 | Dependency injection container | — | intentionally not built (ADR 0006) |
+| Authentication | JWT (access + refresh tokens, stateless) + optional Redis-backed revocation | done |
 
 Full detail, including everything explicitly out of scope and why:
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
@@ -314,6 +315,7 @@ including the ones that constrain what GoFast can honestly claim:
 | [0007](docs/adr/0007-migration-path-from-gin-echo-huma.md) | Migration path from Gin/Echo/Huma via `http.Handler` mounting |
 | [0008](docs/adr/0008-jwt-auth-context-propagation.md) | JWT auth: stateless validation and context propagation |
 | [0009](docs/adr/0009-refresh-tokens-stateless-no-rotation.md) | Refresh tokens: stateless, no rotation |
+| [0010](docs/adr/0010-token-revocation-pluggable-interface.md) | Token revocation: pluggable interface, Redis reference implementation |
 
 ## Project status
 

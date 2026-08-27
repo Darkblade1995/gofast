@@ -6,7 +6,10 @@ import (
 	"net/http"
 	"time"
 
+	goredis "github.com/redis/go-redis/v9"
+
 	"gofast/gofast"
+	gofastredis "gofast/gofast/revocation/redis"
 )
 
 type LoginInput struct {
@@ -24,6 +27,16 @@ type LoginOutput struct {
 // environment variable or secrets manager — never commit a real
 // secret to source control.
 var jwtSecret = []byte("example-secret-do-not-use-in-production")
+
+// redisClient connects to a local Redis instance. In this minimal
+// example the address is hardcoded; a real application should load
+// it from configuration. See ADR 0010 — revocation is optional and
+// entirely opt-in; this example demonstrates it turned on.
+var redisClient = goredis.NewClient(&goredis.Options{
+	Addr: "localhost:6379",
+})
+
+var tokenRevoker = gofastredis.New(redisClient)
 
 func Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
 	accessToken, err := gofast.IssueAccessToken(jwtSecret, in.Email, time.Hour)
@@ -86,13 +99,45 @@ func ListTransactions(ctx context.Context, in ListTransactionsInput) (ListTransa
 	}, nil
 }
 
+type LogoutOutput struct {
+	Message string `json:"message"`
+}
+
+// Logout revokes the caller's current access token via
+// tokenRevoker. It requires an authenticated request (registered
+// behind AuthMiddleware), and reads the token's jti and expiration
+// from the context claims that AuthMiddleware already populated.
+// See ADR 0010.
+func Logout(ctx context.Context, in struct{}) (LogoutOutput, error) {
+	claims, ok := gofast.ClaimsFromContext(ctx)
+	if !ok {
+		return LogoutOutput{}, gofast.NewBusinessError(
+			gofast.ErrCodeUnauthorized,
+			http.StatusUnauthorized,
+			"no authenticated session found",
+		)
+	}
+
+	expiresAt := time.Unix(claims.Expires, 0)
+	if err := tokenRevoker.Revoke(ctx, claims.JTI, expiresAt); err != nil {
+		return LogoutOutput{}, gofast.NewBusinessError(
+			gofast.ErrCodeInternal,
+			http.StatusInternalServerError,
+			"failed to revoke token",
+		)
+	}
+
+	return LogoutOutput{Message: "logged out"}, nil
+}
+
 func main() {
 	router := gofast.NewRouter(
 		gofast.WithAllowedOrigins("http://localhost:5173"),
 	)
 	router.Register("POST", "/login", gofast.Handler(Login))
-	router.Register("POST", "/refresh", gofast.RefreshHandler(jwtSecret, time.Hour))
-	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret)))
+	router.Register("POST", "/refresh", gofast.RefreshHandler(jwtSecret, time.Hour, tokenRevoker))
+	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
+	router.Register("POST", "/logout", gofast.Handler(Logout).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
 	router.Register("GET", "/transactions", gofast.Handler(ListTransactions))
 
 	router.ServeOpenAPI("/openapi.json", "GoFast Example", "1.0.0")
