@@ -19,6 +19,7 @@ const (
 	ErrCodeConflict         ErrorCode = "CONFLICT"
 	ErrCodeForbidden        ErrorCode = "FORBIDDEN"
 	ErrCodeUnauthorized     ErrorCode = "UNAUTHORIZED"
+	ErrCodeRateLimited      ErrorCode = "RATE_LIMITED"
 	ErrCodeUnsupportedMedia ErrorCode = "UNSUPPORTED_MEDIA_TYPE"
 )
 

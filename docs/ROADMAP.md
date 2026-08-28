@@ -112,7 +112,19 @@ review. Items move between sections as they get resolved.
       coverage: unit tests with an in-memory fake revoker
       (auth_test.go), integration tests against real Redis
       (redis_revoker_test.go), and manual end-to-end verification.
-- [ ] A.2 — Rate limiting (golang.org/x/time/rate)
+- [x] A.2 — Rate limiting (ADR 0011): RateLimiter interface in
+      gofast/ (zero new core dependencies), default IP-based
+      keyFunc with override point for policy decisions (e.g.
+      per-user). Two real implementations: gofast/ratelimit/memory
+      (token bucket via golang.org/x/time/rate, single-process) and
+      gofast/ratelimit/redis (fixed-window counter via INCR+EXPIRE,
+      multi-instance). Fail-open on limiter errors (opposite of
+      A.1c's fail-closed — availability vs identity have different
+      failure priorities). 429 Too Many Requests via the existing
+      BusinessError machinery. Verified end-to-end via
+      examples/minimal (/login protected, burst of 5: 200×5, then
+      429). Full test coverage: unit tests (memory) and integration
+      tests against real Redis.
 - [ ] A.3 — Lifespan hooks (startup/shutdown)
 
 
@@ -120,7 +132,7 @@ review. Items move between sections as they get resolved.
 ## Future enhancements (revisit if conditions change)
 - [ ] HTTP QUERY method support — IETF draft, not finalized
 
-## Backlog — explicitly out of scope for V1
+
 ## Backlog — explicitly out of scope for V1
 - [ ] Streaming responses
 - [ ] Content negotiation (multipart, form-data)

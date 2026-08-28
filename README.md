@@ -266,6 +266,7 @@ module) --check)
 | Multipart/form-data | — | not built (see roadmap) |
 | Dependency injection container | — | intentionally not built (ADR 0006) |
 | Authentication | JWT (access + refresh tokens, stateless) + optional Redis-backed revocation | done |
+| Security | request body size limits, Content-Type validation, rate limiting (memory or Redis-backed) | done |
 
 Full detail, including everything explicitly out of scope and why:
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
@@ -316,6 +317,7 @@ including the ones that constrain what GoFast can honestly claim:
 | [0008](docs/adr/0008-jwt-auth-context-propagation.md) | JWT auth: stateless validation and context propagation |
 | [0009](docs/adr/0009-refresh-tokens-stateless-no-rotation.md) | Refresh tokens: stateless, no rotation |
 | [0010](docs/adr/0010-token-revocation-pluggable-interface.md) | Token revocation: pluggable interface, Redis reference implementation |
+| [0011](docs/adr/0011-rate-limiting-pluggable-interface.md) | Rate limiting: pluggable interface, in-memory and Redis implementations |
 
 ## Project status
 

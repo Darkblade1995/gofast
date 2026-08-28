@@ -9,6 +9,7 @@ import (
 	goredis "github.com/redis/go-redis/v9"
 
 	"gofast/gofast"
+	memratelimit "gofast/gofast/ratelimit/memory"
 	gofastredis "gofast/gofast/revocation/redis"
 )
 
@@ -37,6 +38,11 @@ var redisClient = goredis.NewClient(&goredis.Options{
 })
 
 var tokenRevoker = gofastredis.New(redisClient)
+
+// loginRateLimiter protects /login from brute-force credential
+// attempts: 1 request/second sustained, burst of 5, keyed by
+// client IP (the default). See ADR 0011.
+var loginRateLimiter = memratelimit.New(1, 5)
 
 func Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
 	accessToken, err := gofast.IssueAccessToken(jwtSecret, in.Email, time.Hour)
@@ -134,7 +140,7 @@ func main() {
 	router := gofast.NewRouter(
 		gofast.WithAllowedOrigins("http://localhost:5173"),
 	)
-	router.Register("POST", "/login", gofast.Handler(Login))
+	router.Register("POST", "/login", gofast.Handler(Login).Wrap(gofast.RateLimitMiddleware(loginRateLimiter, nil)))
 	router.Register("POST", "/refresh", gofast.RefreshHandler(jwtSecret, time.Hour, tokenRevoker))
 	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
 	router.Register("POST", "/logout", gofast.Handler(Logout).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
