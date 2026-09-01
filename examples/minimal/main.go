@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
 	goredis "github.com/redis/go-redis/v9"
 
 	"gofast/gofast"
@@ -137,6 +139,20 @@ func Logout(ctx context.Context, in struct{}) (LogoutOutput, error) {
 	return LogoutOutput{Message: "logged out"}, nil
 }
 
+// EchoWS is a minimal WebSocket handler: it reads a JSON string
+// message and writes it back prefixed with "echo: ". See ADR 0013.
+func EchoWS(ctx context.Context, conn *websocket.Conn) error {
+	for {
+		var msg string
+		if err := wsjson.Read(ctx, conn, &msg); err != nil {
+			return nil // connection closed by client, or read error — either way, stop
+		}
+		if err := wsjson.Write(ctx, conn, "echo: "+msg); err != nil {
+			return err
+		}
+	}
+}
+
 func main() {
 	router := gofast.NewRouter(
 		gofast.WithAllowedOrigins("http://localhost:5173"),
@@ -146,6 +162,7 @@ func main() {
 	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
 	router.Register("POST", "/logout", gofast.Handler(Logout).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
 	router.Register("GET", "/transactions", gofast.Handler(ListTransactions))
+	router.RegisterWS("/ws/echo", EchoWS)
 
 	router.ServeOpenAPI("/openapi.json", "GoFast Example", "1.0.0")
 	router.ServeSwaggerUI("/docs", "/openapi.json")

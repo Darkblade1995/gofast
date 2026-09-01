@@ -143,6 +143,31 @@ review. Items move between sections as they get resolved.
 **Fase A — COMPLETE.**
 
 
+## Phase 8 — Real-time & operability extensions - IN PROGRESS
+- [x] B.1 — WebSockets (ADR 0013): github.com/coder/websocket
+      (gorilla/websocket is archived; coder/websocket is actively
+      maintained, zero dependencies, native context.Context).
+      New WSHandler type and Router.RegisterWS, deliberately
+      separate from Handler[In, Out] — the request/response
+      contract does not fit a long-lived, bidirectional
+      connection. Existing per-route middleware (auth, rate
+      limiting) still composes at the upgrade step. Verified
+      end-to-end via examples/minimal (/ws/echo) through Postman's
+      WebSocket client, with the full middleware chain (CORS,
+      Recovery, Logger) active. Found and fixed a real bug in the
+      process: Logger's statusRecorder wrapper did not implement
+      http.Hijacker, silently breaking WebSocket upgrades for any
+      route served through Logger — now fixed by having
+      statusRecorder delegate Hijack() to the underlying
+      ResponseWriter. Known gap: WebSocket routes do not appear in
+      GenerateOpenAPI's output (OpenAPI 3.0 has no native
+      WebSocket representation) — documented, not silently
+      ignored. Unit test coverage via a real client/server round
+      trip (dial, write, read, close).
+- [ ] B.2 — Background tasks
+- [ ] B.3 — Built-in TestClient
+
+
 
 ## Future enhancements (revisit if conditions change)
 - [ ] HTTP QUERY method support — IETF draft, not finalized

@@ -1,7 +1,10 @@
 package gofast
 
 import (
+	"bufio"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"strconv"
@@ -17,6 +20,21 @@ type statusRecorder struct {
 func (r *statusRecorder) WriteHeader(status int) {
 	r.status = status
 	r.ResponseWriter.WriteHeader(status)
+}
+
+// Hijack implements http.Hijacker by delegating to the underlying
+// ResponseWriter, if it supports hijacking. This is required for
+// WebSocket upgrades (see gofast.RegisterWS, ADR 0013) to work
+// when a route is served through Logger — without this,
+// statusRecorder's embedding of the http.ResponseWriter interface
+// silently drops the Hijacker capability the underlying writer
+// actually has.
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("underlying ResponseWriter does not support hijacking")
+	}
+	return hijacker.Hijack()
 }
 
 // Logger wraps an http.Handler, logging method, path, status
