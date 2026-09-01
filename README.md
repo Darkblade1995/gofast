@@ -267,6 +267,7 @@ module) --check)
 | Dependency injection container | — | intentionally not built (ADR 0006) |
 | Authentication | JWT (access + refresh tokens, stateless) + optional Redis-backed revocation | done |
 | Security | request body size limits, Content-Type validation, rate limiting (memory or Redis-backed) | done |
+| Lifecycle | Router.OnStartup/OnShutdown hooks, optional Router.Run for orchestrated graceful shutdown | done |
 
 Full detail, including everything explicitly out of scope and why:
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
@@ -318,6 +319,9 @@ including the ones that constrain what GoFast can honestly claim:
 | [0009](docs/adr/0009-refresh-tokens-stateless-no-rotation.md) | Refresh tokens: stateless, no rotation |
 | [0010](docs/adr/0010-token-revocation-pluggable-interface.md) | Token revocation: pluggable interface, Redis reference implementation |
 | [0011](docs/adr/0011-rate-limiting-pluggable-interface.md) | Rate limiting: pluggable interface, in-memory and Redis implementations |
+| [0012](docs/adr/0012-lifespan-hooks-router-run.md) | Lifespan hooks: Router.Run built on net/http's graceful shutdown |
+
+
 
 ## Project status
 

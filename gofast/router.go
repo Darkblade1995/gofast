@@ -3,8 +3,12 @@ package gofast
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"os/signal"
 	"reflect"
+	"syscall"
+	"time"
 )
 
 type contextKey string
@@ -61,14 +65,17 @@ func WithAllowedOrigins(origins ...string) Option {
 // registering routes after the server has started serving
 // traffic. See ADR 0002 for the reasoning behind this constraint.
 type Router struct {
-	mux    *http.ServeMux
-	routes []Route
-	config routerConfig
+	mux           *http.ServeMux
+	routes        []Route
+	config        routerConfig
+	startupHooks  []func(context.Context) error
+	shutdownHooks []func(context.Context) error
 }
 
 // NewRouter creates a Router with the given options applied. Call
 // Register to add routes before passing the Router (or a
-// middleware chain wrapping it) to http.ListenAndServe.
+// middleware chain wrapping it) to http.ListenAndServe, or to
+// Router.Run.
 func NewRouter(opts ...Option) *Router {
 	r := &Router{
 		mux:    http.NewServeMux(),
@@ -118,6 +125,81 @@ func (r *Router) config_() routerConfig {
 // its registered route.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.mux.ServeHTTP(w, req)
+}
+
+// OnStartup registers a hook to run before Run begins accepting
+// traffic. Hooks run in registration order. If any hook returns an
+// error, Run returns that error immediately without starting the
+// server. See ADR 0012.
+func (r *Router) OnStartup(hook func(ctx context.Context) error) {
+	r.startupHooks = append(r.startupHooks, hook)
+}
+
+// OnShutdown registers a hook to run after Run has finished
+// draining in-flight requests. Hooks run in reverse registration
+// order (LIFO), mirroring defer semantics. See ADR 0012.
+func (r *Router) OnShutdown(hook func(ctx context.Context) error) {
+	r.shutdownHooks = append(r.shutdownHooks, hook)
+}
+
+// Run is an optional convenience that orchestrates a Router's full
+// lifecycle: it runs OnStartup hooks, serves HTTP on addr, blocks
+// until ctx is canceled or the process receives SIGINT/SIGTERM,
+// then gracefully drains in-flight requests via http.Server.Shutdown
+// and runs OnShutdown hooks. handler is what actually serves each
+// request — pass nil to serve the Router directly, or pass a
+// middleware chain wrapping the Router (e.g. CORS, Recovery,
+// Logger) to apply those globally while still using Run's
+// lifecycle management. Using Run at all remains optional —
+// constructing an *http.Server manually is fully supported too.
+// See ADR 0012.
+func (r *Router) Run(ctx context.Context, addr string, handler http.Handler) error {
+	for _, hook := range r.startupHooks {
+		if err := hook(ctx); err != nil {
+			return err
+		}
+	}
+
+	if handler == nil {
+		handler = r
+	}
+	server := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+
+	signalCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	serveErr := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serveErr <- err
+		}
+		close(serveErr)
+	}()
+
+	select {
+	case err := <-serveErr:
+		if err != nil {
+			return err
+		}
+	case <-signalCtx.Done():
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return err
+	}
+
+	for i := len(r.shutdownHooks) - 1; i >= 0; i-- {
+		if err := r.shutdownHooks[i](shutdownCtx); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func configFromContext(ctx context.Context) routerConfig {

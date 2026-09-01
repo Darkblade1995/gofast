@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -149,18 +150,25 @@ func main() {
 	router.ServeOpenAPI("/openapi.json", "GoFast Example", "1.0.0")
 	router.ServeSwaggerUI("/docs", "/openapi.json")
 
+	router.OnStartup(func(ctx context.Context) error {
+		log.Println("checking Redis connectivity...")
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			return fmt.Errorf("redis unreachable at startup: %w", err)
+		}
+		log.Println("redis reachable")
+		log.Println("server running on :8080")
+		return nil
+	})
+
+	router.OnShutdown(func(ctx context.Context) error {
+		log.Println("closing redis connection...")
+		return redisClient.Close()
+	})
+
 	corsMiddleware := gofast.CORS(router)
 	handler := corsMiddleware(gofast.Recovery(gofast.Logger(router)))
 
-	server := &http.Server{
-		Addr:              ":8080",
-		Handler:           handler,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		ReadHeaderTimeout: 5 * time.Second,
+	if err := router.Run(context.Background(), ":8080", handler); err != nil {
+		log.Fatal(err)
 	}
-
-	log.Println("server running on :8080")
-	log.Fatal(server.ListenAndServe())
 }

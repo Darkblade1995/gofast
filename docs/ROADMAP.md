@@ -79,7 +79,7 @@ review. Items move between sections as they get resolved.
 - [x] ADR 0006 — Dependency injection via explicit closures
 - [x] ADR 0007 — Migration path from Gin/Echo/Huma
 
-## Phase 7 — Production auth & operability - IN PROGRESS
+## Phase 7 — Production auth & operability - COMPLETE
 - [x] ADR 0008 — JWT stateless validation, context propagation
 - [x] AuthMiddleware — HMAC JWT validation (missing/malformed/
       invalid-signature/expired all return 401 UNAUTHORIZED)
@@ -125,7 +125,22 @@ review. Items move between sections as they get resolved.
       examples/minimal (/login protected, burst of 5: 200×5, then
       429). Full test coverage: unit tests (memory) and integration
       tests against real Redis.
-- [ ] A.3 — Lifespan hooks (startup/shutdown)
+- [x] A.3 — Lifespan hooks (ADR 0012): Router.OnStartup/OnShutdown
+      for registering hooks, and an optional Router.Run(ctx, addr,
+      handler) that orchestrates the full lifecycle on top of
+      net/http's own graceful shutdown — no custom server, no
+      custom shutdown logic. Startup hooks run before traffic is
+      accepted (fail-fast if any errors); shutdown hooks run in
+      LIFO order after in-flight requests drain. handler is
+      optional — pass nil to serve the Router directly, or a
+      middleware chain (CORS, Recovery, Logger) to keep using those
+      globally with Run's lifecycle management. Verified end-to-end
+      via examples/minimal: startup hook checks Redis connectivity
+      before serving, shutdown hook closes the Redis client
+      cleanly on SIGINT. Unit tests cover startup ordering,
+      fail-fast on startup error, and LIFO shutdown order.
+
+**Fase A — COMPLETE.**
 
 
 
