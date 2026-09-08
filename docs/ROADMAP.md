@@ -203,6 +203,38 @@ review. Items move between sections as they get resolved.
 
 
 
+## Phase 9 — Streaming & content negotiation - IN PROGRESS
+- [x] C.1 — Streaming responses via SSE (ADR 0016): new SSEHandler
+      type and Router.RegisterSSE, deliberately separate from
+      Handler[In, Out] (same reasoning as WebSockets, ADR 0013).
+      SSEStream.Send marshals to JSON, writes SSE wire format, and
+      flushes immediately — without the explicit flush, the
+      response writer's default buffering means the client gets
+      nothing until the handler returns. Server-Sent Events chosen
+      over generic byte streaming as the first primitive: simpler
+      format, native browser support via EventSource, covers the
+      common progress/incremental-generation case directly.
+      Handler receives req.Context() (unlike RegisterWS/SpawnTask,
+      which deliberately use an independent context) — SSE lives
+      within a single HTTP request's lifecycle, so request
+      cancellation is exactly the right signal to stop streaming.
+      Found and fixed a second real bug in the same class as B.1's
+      Hijacker fix: Logger's statusRecorder also silently dropped
+      http.Flusher, breaking SSE for any route served through
+      Logger; statusRecorder now delegates Flush() to the
+      underlying ResponseWriter too. Verified end-to-end via
+      examples/minimal (/sse/progress) through Postman — 5 events,
+      ~500ms apart, ~2.5s total, confirmed via response timestamps
+      and server-side request duration logging. Unit tests cover
+      wire format, event ordering, headers, and context
+      propagation. Known gap: SSE routes, like WebSocket routes,
+      don't appear in OpenAPI output (documented, consistent with
+      B.1's same gap).
+- [ ] C.2 — Multipart/form-data
+
+
+
+
 ## Future enhancements (revisit if conditions change)
 - [ ] HTTP QUERY method support — IETF draft, not finalized
 

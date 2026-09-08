@@ -161,6 +161,23 @@ func EchoWS(ctx context.Context, conn *websocket.Conn) error {
 	}
 }
 
+// ProgressSSE streams 5 progress events, 500ms apart, then closes.
+// See ADR 0016.
+func ProgressSSE(ctx context.Context, stream *gofast.SSEStream) error {
+	for i := 1; i <= 5; i++ {
+		select {
+		case <-ctx.Done():
+			return nil // client disconnected
+		case <-time.After(500 * time.Millisecond):
+		}
+
+		if err := stream.Send("progress", map[string]int{"percent": i * 20}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 	router := gofast.NewRouter(
 		gofast.WithAllowedOrigins("http://localhost:5173"),
@@ -173,6 +190,7 @@ func main() {
 	router.Register("POST", "/logout", gofast.Handler(Logout).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
 	router.Register("GET", "/transactions", gofast.Handler(ListTransactions))
 	router.RegisterWS("/ws/echo", EchoWS)
+	router.RegisterSSE("/sse/progress", ProgressSSE)
 
 	router.ServeOpenAPI("/openapi.json", "GoFast Example", "1.0.0")
 	router.ServeSwaggerUI("/docs", "/openapi.json")

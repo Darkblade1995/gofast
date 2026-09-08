@@ -37,6 +37,17 @@ func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return hijacker.Hijack()
 }
 
+// Flush implements http.Flusher by delegating to the underlying
+// ResponseWriter, if it supports flushing. This is required for
+// streaming responses (see gofast.RegisterSSE, ADR 0016) to work
+// when a route is served through Logger — same class of bug
+// already fixed for WebSocket's Hijacker requirement (ADR 0013).
+func (r *statusRecorder) Flush() {
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 // Logger wraps an http.Handler, logging method, path, status
 // code, and duration for every request.
 func Logger(next http.Handler) http.Handler {
