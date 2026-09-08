@@ -66,6 +66,14 @@ func Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
 		)
 	}
 
+	// Simulates sending a "you logged in" notification without
+	// blocking the response to the client. See ADR 0014.
+	gofast.SpawnTask(ctx, func(taskCtx context.Context) error {
+		time.Sleep(500 * time.Millisecond) // simulate a slow email API
+		log.Printf("[background] sent login notification for %s", in.Email)
+		return nil
+	})
+
 	return LoginOutput{Token: accessToken, RefreshToken: refreshToken}, nil
 }
 
@@ -157,6 +165,8 @@ func main() {
 	router := gofast.NewRouter(
 		gofast.WithAllowedOrigins("http://localhost:5173"),
 	)
+	router.EnableBackgroundTasks(10 * time.Second)
+
 	router.Register("POST", "/login", gofast.Handler(Login).Wrap(gofast.RateLimitMiddleware(loginRateLimiter, nil)))
 	router.Register("POST", "/refresh", gofast.RefreshHandler(jwtSecret, time.Hour, tokenRevoker))
 	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))

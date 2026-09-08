@@ -70,6 +70,7 @@ type Router struct {
 	config        routerConfig
 	startupHooks  []func(context.Context) error
 	shutdownHooks []func(context.Context) error
+	taskRunner    *taskRunner
 }
 
 // NewRouter creates a Router with the given options applied. Call
@@ -103,12 +104,13 @@ func (r *Router) Register(method, path string, info HandlerInfo) {
 		OutType: info.OutType,
 	})
 
-	wrapped := func(w http.ResponseWriter, req *http.Request) {
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		ctx := context.WithValue(req.Context(), configKey, r.config)
 		info.Func(w, req.WithContext(ctx))
-	}
+	}))
+	handler = withTaskRunner(r.taskRunner, handler)
 
-	r.mux.HandleFunc(method+" "+path, wrapped)
+	r.mux.Handle(method+" "+path, handler)
 }
 
 // Routes returns all routes registered so far, in registration

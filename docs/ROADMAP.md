@@ -164,7 +164,25 @@ review. Items move between sections as they get resolved.
       WebSocket representation) — documented, not silently
       ignored. Unit test coverage via a real client/server round
       trip (dial, write, read, close).
-- [ ] B.2 — Background tasks
+- [x] B.2 — Background tasks (ADR 0014): SpawnTask(ctx, fn),
+      accessed via context injection — mirrors ClaimsFromContext's
+      pattern (ADR 0008) rather than changing Handler[In, Out]'s
+      signature, which would have broken every existing handler.
+      Router.EnableBackgroundTasks(timeout) opts a Router in,
+      injecting a taskRunner into each request's context and
+      registering an OnShutdown hook (reusing A.3's mechanism
+      directly) that waits for in-flight tasks before shutdown
+      proceeds. Spawned tasks run with an independent context, not
+      the request's — the same fix already applied to WebSocket
+      connections in ADR 0013, since a request's context is
+      canceled once its response is written. No retry, no
+      persistence — deliberately out of scope; durable background
+      work belongs in a real job queue. Verified end-to-end via
+      examples/minimal (/login spawns a simulated notification
+      task; response returns in ~120µs, the task logs ~500ms
+      later, confirmed via server timing). Unit tests cover
+      spawn-and-complete, no-op without EnableBackgroundTasks, and
+      shutdown waiting for in-flight tasks.
 - [ ] B.3 — Built-in TestClient
 
 
