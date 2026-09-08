@@ -270,6 +270,7 @@ module) --check)
 | Lifecycle | Router.OnStartup/OnShutdown hooks, optional Router.Run for orchestrated graceful shutdown | done |
 | Real-time | WebSockets via Router.RegisterWS (coder/websocket) | done |
 | Background work | SpawnTask via context injection, coordinated with graceful shutdown | done |
+| Testing | Built-in TestClient (in-process, JSON bodies, auth token helper) | done |
 
 Full detail, including everything explicitly out of scope and why:
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
@@ -324,6 +325,7 @@ including the ones that constrain what GoFast can honestly claim:
 | [0012](docs/adr/0012-lifespan-hooks-router-run.md) | Lifespan hooks: Router.Run built on net/http's graceful shutdown |
 | [0013](docs/adr/0013-websocket-support-coder-websocket.md) | WebSocket support: coder/websocket, a separate handler contract |
 | [0014](docs/adr/0014-background-tasks-via-context.md) | Background tasks: TaskRunner injected via context, coordinated with lifespan shutdown |
+| [0015](docs/adr/0015-testclient-httptest-recorder.md) | Built-in TestClient: httptest.Recorder, not a real server |
 
 
 

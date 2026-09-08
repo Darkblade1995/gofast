@@ -143,7 +143,7 @@ review. Items move between sections as they get resolved.
 **Fase A — COMPLETE.**
 
 
-## Phase 8 — Real-time & operability extensions - IN PROGRESS
+## Phase 8 — Real-time & operability extensions - COMPLETE
 - [x] B.1 — WebSockets (ADR 0013): github.com/coder/websocket
       (gorilla/websocket is archived; coder/websocket is actively
       maintained, zero dependencies, native context.Context).
@@ -183,7 +183,23 @@ review. Items move between sections as they get resolved.
       later, confirmed via server timing). Unit tests cover
       spawn-and-complete, no-op without EnableBackgroundTasks, and
       shutdown waiting for in-flight tasks.
-- [ ] B.3 — Built-in TestClient
+- [x] B.3 — Built-in TestClient (ADR 0015): TestClient wraps any
+      http.Handler (Router, or Router plus middleware chain) and
+      dispatches requests via httptest.NewRecorder — in-process,
+      no real network socket, faster and free of port-allocation
+      flakiness. GET/POST/PUT/PATCH/DELETE marshal bodies to JSON
+      automatically. SetAuthToken carries Authorization: Bearer
+      across subsequent requests, targeting the login-then-call-
+      protected-route flow common to GoFast's own auth work
+      (ADRs 0008–0010). Deliberately narrow scope: no new assertion
+      DSL, just AssertStatus/DecodeJSON on top of the raw response
+      — richer assertions are left to whatever library (or none)
+      the application already uses. Verified via its own test
+      suite exercising a real authenticated flow: unauthenticated
+      request rejected, token issued and set, authenticated request
+      succeeds with correct claims round-tripped.
+
+**Fase B — COMPLETE.**
 
 
 
