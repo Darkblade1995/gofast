@@ -65,5 +65,12 @@ func GenerateAndWrite(sourcePath string) ([]string, error) {
 		written = append(written, out)
 	}
 
+	bindMultipartCode := GenerateBindMultipart(parsed.PackageName, parsed.Structs)
+	if out, err := writeGenerated(sourcePath, "_bindmultipart.gen.go", bindMultipartCode); err != nil {
+		return nil, err
+	} else if out != "" {
+		written = append(written, out)
+	}
+
 	return written, nil
 }

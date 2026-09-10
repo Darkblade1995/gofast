@@ -54,10 +54,12 @@ func (h HandlerInfo) Wrap(mw func(http.Handler) http.Handler) HandlerInfo {
 }
 
 // Handler wraps a business function into a ready-to-register HTTP
-// handler. It decodes the JSON request body into In, applies path
-// and query binding if In implements PathBinder or QueryBinder,
-// validates In if it implements Validatable, calls fn, and encodes
-// the result as a JSON response.
+// handler. It decodes the JSON request body into In (or parses a
+// multipart/form-data body if In implements MultipartBinder — see
+// ADR 0017), applies path and query binding if In implements
+// PathBinder or QueryBinder, validates In if it implements
+// Validatable, calls fn, and encodes the result as a JSON
+// response.
 func Handler[In any, Out any](fn func(context.Context, In) (Out, error)) HandlerInfo {
 	var inZero In
 	var outZero Out
@@ -73,12 +75,25 @@ func Handler[In any, Out any](fn func(context.Context, In) (Out, error)) Handler
 				return
 			}
 
-			r.Body = http.MaxBytesReader(w, r.Body, cfg.maxBodySize)
-			decoder := json.NewDecoder(r.Body)
-			decoder.DisallowUnknownFields()
-			if err := decoder.Decode(&in); err != nil {
-				writeError(w, http.StatusBadRequest, ErrCodeBadRequest, "invalid JSON body", err.Error())
-				return
+			if isMultipart(r) {
+				if err := r.ParseMultipartForm(cfg.maxBodySize); err != nil {
+					writeError(w, http.StatusBadRequest, ErrCodeBadRequest, "invalid multipart form", err.Error())
+					return
+				}
+				if mb, ok := any(&in).(MultipartBinder); ok {
+					if err := mb.BindMultipart(r.MultipartForm); err != nil {
+						writeError(w, http.StatusBadRequest, ErrCodeBadRequest, "failed to bind multipart form", err.Error())
+						return
+					}
+				}
+			} else {
+				r.Body = http.MaxBytesReader(w, r.Body, cfg.maxBodySize)
+				decoder := json.NewDecoder(r.Body)
+				decoder.DisallowUnknownFields()
+				if err := decoder.Decode(&in); err != nil {
+					writeError(w, http.StatusBadRequest, ErrCodeBadRequest, "invalid JSON body", err.Error())
+					return
+				}
 			}
 		}
 
@@ -114,6 +129,11 @@ func Handler[In any, Out any](fn func(context.Context, In) (Out, error)) Handler
 	}
 }
 
+func isMultipart(r *http.Request) bool {
+	mediaType := strings.Split(r.Header.Get("Content-Type"), ";")[0]
+	return strings.TrimSpace(mediaType) == "multipart/form-data"
+}
+
 func checkContentType(r *http.Request) error {
 	ct := r.Header.Get("Content-Type")
 	if ct == "" {
@@ -124,22 +144,17 @@ func checkContentType(r *http.Request) error {
 	mediaType = strings.TrimSpace(mediaType)
 
 	switch mediaType {
-	case "application/json", "":
+	case "application/json", "multipart/form-data", "":
 		return nil
-	case "multipart/form-data":
-		return &unsupportedMediaError{
-			got:    mediaType,
-			detail: "multipart/form-data is not supported in this version of GoFast (file uploads and form encoding are not yet implemented)",
-		}
 	case "application/x-www-form-urlencoded":
 		return &unsupportedMediaError{
 			got:    mediaType,
-			detail: "application/x-www-form-urlencoded is not supported in this version of GoFast (only application/json is accepted)",
+			detail: "application/x-www-form-urlencoded is not supported in this version of GoFast (only application/json and multipart/form-data are accepted)",
 		}
 	default:
 		return &unsupportedMediaError{
 			got:    mediaType,
-			detail: "only application/json is supported in this version of GoFast",
+			detail: "only application/json and multipart/form-data are supported in this version of GoFast",
 		}
 	}
 }

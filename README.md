@@ -263,7 +263,7 @@ module) --check)
 | Engineering | CPU/memory profiling documented | done |
 | Authentication | JWT middleware (stateless validation) | done |
 | Streaming responses | — | not built (see roadmap) |
-| Multipart/form-data | — | not built (see roadmap) |
+| Multipart/form-data | file uploads via `form:"..."` tag, build-time codegen (zero runtime reflection) | done |
 | Dependency injection container | — | intentionally not built (ADR 0006) |
 | Authentication | JWT (access + refresh tokens, stateless) + optional Redis-backed revocation | done |
 | Security | request body size limits, Content-Type validation, rate limiting (memory or Redis-backed) | done |
@@ -272,6 +272,7 @@ module) --check)
 | Background work | SpawnTask via context injection, coordinated with graceful shutdown | done |
 | Testing | Built-in TestClient (in-process, JSON bodies, auth token helper) | done |
 | Streaming responses | Server-Sent Events via Router.RegisterSSE | done |
+
 
 Full detail, including everything explicitly out of scope and why:
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
@@ -328,6 +329,7 @@ including the ones that constrain what GoFast can honestly claim:
 | [0014](docs/adr/0014-background-tasks-via-context.md) | Background tasks: TaskRunner injected via context, coordinated with lifespan shutdown |
 | [0015](docs/adr/0015-testclient-httptest-recorder.md) | Built-in TestClient: httptest.Recorder, not a real server |
 | [0016](docs/adr/0016-streaming-responses-sse.md) | Streaming responses: Server-Sent Events, a separate handler contract |
+| [0017](docs/adr/0017-multipart-form-data-build-time-codegen.md) | Multipart/form-data: build-time codegen, consistent with ADR 0001 |
 
 
 

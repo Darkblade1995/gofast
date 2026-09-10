@@ -178,6 +178,35 @@ func ProgressSSE(ctx context.Context, stream *gofast.SSEStream) error {
 	return nil
 }
 
+type UploadInput struct {
+	Title string                `form:"title"`
+	File  *gofast.UploadedFile `form:"file"`
+}
+
+type UploadOutput struct {
+	Title    string `json:"title"`
+	Filename string `json:"filename"`
+	Size     int64  `json:"size"`
+}
+
+// UploadFile demonstrates multipart/form-data binding. See ADR
+// 0017.
+func UploadFile(ctx context.Context, in UploadInput) (UploadOutput, error) {
+	if in.File == nil {
+		return UploadOutput{}, gofast.NewBusinessError(
+			gofast.ErrCodeBadRequest,
+			http.StatusBadRequest,
+			"file is required",
+		)
+	}
+
+	return UploadOutput{
+		Title:    in.Title,
+		Filename: in.File.Filename(),
+		Size:     in.File.Size(),
+	}, nil
+}
+
 func main() {
 	router := gofast.NewRouter(
 		gofast.WithAllowedOrigins("http://localhost:5173"),
@@ -189,6 +218,7 @@ func main() {
 	router.Register("GET", "/accounts/{id}", gofast.Handler(GetAccount).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
 	router.Register("POST", "/logout", gofast.Handler(Logout).Wrap(gofast.AuthMiddleware(jwtSecret, tokenRevoker)))
 	router.Register("GET", "/transactions", gofast.Handler(ListTransactions))
+	router.Register("POST", "/upload", gofast.Handler(UploadFile))
 	router.RegisterWS("/ws/echo", EchoWS)
 	router.RegisterSSE("/sse/progress", ProgressSSE)
 

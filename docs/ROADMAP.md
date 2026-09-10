@@ -203,7 +203,7 @@ review. Items move between sections as they get resolved.
 
 
 
-## Phase 9 — Streaming & content negotiation - IN PROGRESS
+## Phase 9 — Streaming & content negotiation - COMPLETE
 - [x] C.1 — Streaming responses via SSE (ADR 0016): new SSEHandler
       type and Router.RegisterSSE, deliberately separate from
       Handler[In, Out] (same reasoning as WebSockets, ADR 0013).
@@ -230,7 +230,36 @@ review. Items move between sections as they get resolved.
       propagation. Known gap: SSE routes, like WebSocket routes,
       don't appear in OpenAPI output (documented, consistent with
       B.1's same gap).
-- [ ] C.2 — Multipart/form-data
+- [x] C.2 — Multipart/form-data (ADR 0017): new `form:"..."` tag,
+      following the exact same pattern as `path:"..."` and
+      `query:"..."` — extractSimpleTag/tagFields reused unchanged,
+      new GenerateBindMultipart in internal/codegen mirroring
+      GenerateBindPath/GenerateBindQuery. New MultipartBinder
+      interface and UploadedFile type (thin wrapper over
+      *multipart.FileHeader) in gofast/. Handler[In, Out] parses
+      the form (bounded by the Router's existing maxBodySize) and
+      calls BindMultipart when the input implements it — the 415
+      rejection for multipart/form-data is removed;
+      x-www-form-urlencoded remains rejected (no concrete need
+      identified). Chose build-time codegen over runtime reflection
+      specifically to preserve ADR 0001/0003's zero-reflection
+      guarantee for this final roadmap item — the simpler
+      alternative (reflection) was explicitly rejected as
+      inconsistent with the project's own foundational bet.
+      Verified end-to-end via examples/minimal (/upload): a real
+      9752-byte file uploaded via Postman form-data, correctly
+      read back with matching filename and size. Unit tests cover
+      generated code shape (with/without form-tagged fields) and
+      Handler's runtime behavior (valid multipart accepted,
+      malformed multipart rejected with 400 — updated from the
+      prior test verifying the now-obsolete 415 rejection).
+
+**Fase C — COMPLETE.**
+
+**ROADMAP COMPLETE — all of Fase A, B, and C are done. v1.0.0
+is now unblocked per the versioning criteria in ADR 0005 (API
+stability across two consecutive releases still applies before
+tagging).**
 
 
 
