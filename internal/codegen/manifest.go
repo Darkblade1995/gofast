@@ -63,6 +63,16 @@ func (m *Manifest) Save() error {
 	return os.WriteFile(m.path, data, 0600)
 }
 
+// HashMatches reports whether sourcePath's current content matches
+// the hash recorded for it, AND that every file this manifest
+// recorded as generated from it still exists on disk. A hash match
+// alone is not sufficient: a recorded output file may have been
+// deleted externally (manually, by another tool, or by test
+// cleanup) since it was last generated. Treating that as
+// "unchanged" would silently skip regeneration and leave a stale
+// or missing .gen.go file in place — this was a documented Known
+// Risk in docs/ROADMAP.md, discovered when TestGenerateAndWrite
+// was found deleting real .gen.go files it didn't own.
 func (m *Manifest) HashMatches(sourcePath string) (bool, error) {
 	absPath, err := filepath.Abs(sourcePath)
 	if err != nil {
@@ -79,7 +89,17 @@ func (m *Manifest) HashMatches(sourcePath string) (bool, error) {
 		return false, nil
 	}
 
-	return entry.Hash == currentHash, nil
+	if entry.Hash != currentHash {
+		return false, nil
+	}
+
+	for _, generatedPath := range entry.Generated {
+		if _, err := os.Stat(generatedPath); err != nil {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }
 
 func (m *Manifest) Update(sourcePath string, generatedFiles []string) error {

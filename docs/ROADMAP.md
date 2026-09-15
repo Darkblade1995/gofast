@@ -283,6 +283,23 @@ tagging).**
       to compare against; cannot be meaningfully built before that
       exists
 
+## Resolved risks
+- ~~Manifest does not verify that its recorded "generated" files
+  still exist on disk before skipping regeneration~~ — RESOLVED:
+  `Manifest.HashMatches` now checks that every recorded generated
+  file exists via `os.Stat` before reporting a match, in addition
+  to comparing the source hash. While fixing this, discovered and
+  fixed a second, related bug it exposed: generated file paths
+  were recorded as relative paths (relative to whatever directory
+  `gofast generate` was run from), which broke `os.Stat` checks
+  run from a different working directory (e.g. `go test` running
+  from within `examples/minimal/`, not the repo root). Generated
+  paths are now always recorded as absolute paths
+  (`outputPathFor` in `internal/codegen/write.go`). Covered by
+  `TestManifest_RegeneratesIfGeneratedFileMissing` and the
+  corrected `TestManifestRoundTrip`.
+
+
 ## Known risks (tracked, not yet resolved)
 - Manifest race condition if `gofast generate` runs concurrently
   in a monorepo with multiple packages
@@ -290,11 +307,3 @@ tagging).**
   gets revisited via a new ADR, not edited
 - Route registration is not concurrency-safe — documented via
   ADR 0002 as an intentional startup-only design constraint
-- Manifest does not verify that its recorded "generated" files
-  still exist on disk before skipping regeneration — if a
-  .gen.go file is deleted externally (manually, by another tool,
-  or by test cleanup) but the source .go file is unchanged, `gofast
-  generate` reports "unchanged, skipping" instead of noticing the
-  output is missing and regenerating it. Discovered while fixing
-  TestGenerateAndWrite writing into examples/minimal instead of a
-  temp directory (see commit history).

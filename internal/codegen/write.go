@@ -11,7 +11,20 @@ func outputPathFor(sourcePath, suffix string) string {
 	dir := filepath.Dir(sourcePath)
 	base := filepath.Base(sourcePath)
 	name := strings.TrimSuffix(base, ".go")
-	return filepath.Join(dir, name+suffix)
+	joined := filepath.Join(dir, name+suffix)
+
+	// Always return an absolute path. Generated file paths are
+	// recorded in the manifest (see manifest.go's HashMatches,
+	// which now verifies these files still exist on disk) and
+	// checked from whatever directory a caller happens to run
+	// from — a relative path here would only resolve correctly
+	// from the exact working directory gofast generate was
+	// originally run from.
+	abs, err := filepath.Abs(joined)
+	if err != nil {
+		return joined
+	}
+	return abs
 }
 
 func OutputPath(sourcePath string) string {
