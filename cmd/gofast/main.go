@@ -84,13 +84,13 @@ func runGenerate(args []string) {
 		fmt.Printf("generated: %s\n", p)
 	}
 
-	if err := manifest.Update(sourcePath, outPaths); err != nil {
+	// UpdateAndSave retries automatically if another gofast
+	// generate process wrote to the manifest concurrently — see
+	// ADR 0018. This replaces the previous separate
+	// manifest.Update + manifest.Save calls, which could silently
+	// lose another process's entry under concurrent writes.
+	if err := codegen.UpdateAndSave(".", sourcePath, outPaths); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to update manifest: %v\n", err)
-		os.Exit(1)
-	}
-
-	if err := manifest.Save(); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to save manifest: %v\n", err)
 		os.Exit(1)
 	}
 }

@@ -284,26 +284,26 @@ tagging).**
       exists
 
 ## Resolved risks
-- ~~Manifest does not verify that its recorded "generated" files
-  still exist on disk before skipping regeneration~~ — RESOLVED:
-  `Manifest.HashMatches` now checks that every recorded generated
-  file exists via `os.Stat` before reporting a match, in addition
-  to comparing the source hash. While fixing this, discovered and
-  fixed a second, related bug it exposed: generated file paths
-  were recorded as relative paths (relative to whatever directory
-  `gofast generate` was run from), which broke `os.Stat` checks
-  run from a different working directory (e.g. `go test` running
-  from within `examples/minimal/`, not the repo root). Generated
-  paths are now always recorded as absolute paths
-  (`outputPathFor` in `internal/codegen/write.go`). Covered by
-  `TestManifest_RegeneratesIfGeneratedFileMissing` and the
-  corrected `TestManifestRoundTrip`.
+- ~~Manifest race condition if `gofast generate` runs concurrently
+  in a monorepo with multiple packages~~ — RESOLVED (ADR 0018):
+  `Manifest` gains a `Version` counter, incremented on every
+  successful `Save`. New `UpdateAndSave(startDir, sourcePath,
+  generatedFiles)` performs the full load-update-save cycle
+  under a package-level mutex (serializing goroutines within one
+  process) plus optimistic version-conflict detection (catching
+  writes from other processes), retrying up to 5 times on
+  conflict. `cmd/gofast/main.go` now uses `UpdateAndSave` instead
+  of separate `Update`+`Save` calls. Initial mutex placement
+  (guarding only `Save`, not the full cycle) was insufficient —
+  discovered via `TestUpdateAndSave_ConcurrentWritesDoNotLoseEntries`
+  (10 concurrent goroutines), which failed until the mutex was
+  moved to wrap the entire `UpdateAndSave` cycle. Verified clean
+  under `-race`.
 
 
 ## Known risks (tracked, not yet resolved)
-- Manifest race condition if `gofast generate` runs concurrently
-  in a monorepo with multiple packages
 - Codegen complexity may exceed initial estimate — if so, ADR 0001
-  gets revisited via a new ADR, not edited
+  gets revisited via a new ADR, not edited (this is a governance
+  note, not a bug — nothing to fix unless it happens)
 - Route registration is not concurrency-safe — documented via
   ADR 0002 as an intentional startup-only design constraint
