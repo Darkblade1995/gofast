@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gofast/gofast"
+	"github.com/Darkblade1995/gofast/gofast"
 )
 
 func TestHealthCheckHealthy(t *testing.T) {

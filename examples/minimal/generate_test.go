@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"gofast/internal/codegen"
+		"github.com/Darkblade1995/gofast/internal/codegen"
 )
 
 func TestGeneratedCodeIsUpToDate(t *testing.T) {

@@ -28,7 +28,7 @@ func GenerateBindMultipart(packageName string, structs []StructInfo) string {
 	}
 
 	if needsGofastImport {
-		body.WriteString("import (\n\t\"gofast/gofast\"\n\t\"mime/multipart\"\n)\n\n")
+			body.WriteString("import (\n\t\"github.com/Darkblade1995/gofast/gofast\"\n\t\"mime/multipart\"\n)\n\n")
 	} else {
 		body.WriteString("import \"mime/multipart\"\n\n")
 	}

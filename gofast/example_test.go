@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"gofast/gofast"
+	"github.com/Darkblade1995/gofast/gofast"
 )
 
 type ExampleLoginInput struct {

@@ -98,7 +98,7 @@ import (
 	"net/http"
 	"time"
 
-	"gofast/gofast"
+	"github.com/Darkblade1995/gofast/gofast"
 )
 
 type LoginInput struct {

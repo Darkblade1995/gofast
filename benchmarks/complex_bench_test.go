@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gofast/gofast"
+	"github.com/Darkblade1995/gofast/gofast"
 )
 
 type ComplexReceiverInfo struct {

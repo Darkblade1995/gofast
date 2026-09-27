@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"gofast/internal/codegen"
+	"github.com/Darkblade1995/gofast/internal/codegen"
 )
 
 func main() {

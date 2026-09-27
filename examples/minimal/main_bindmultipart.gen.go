@@ -3,7 +3,7 @@
 package main
 
 import (
-	"gofast/gofast"
+	"github.com/Darkblade1995/gofast/gofast"
 	"mime/multipart"
 )
 

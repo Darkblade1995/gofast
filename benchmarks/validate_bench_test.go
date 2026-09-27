@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"gofast/gofast"
+	"github.com/Darkblade1995/gofast/gofast"
 )
 
 type GoFastLoginInput struct {

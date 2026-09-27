@@ -11,9 +11,9 @@ import (
 	"github.com/coder/websocket/wsjson"
 	goredis "github.com/redis/go-redis/v9"
 
-	"gofast/gofast"
-	memratelimit "gofast/gofast/ratelimit/memory"
-	gofastredis "gofast/gofast/revocation/redis"
+	"github.com/Darkblade1995/gofast/gofast"
+	memratelimit "github.com/Darkblade1995/gofast/gofast/ratelimit/memory"
+	gofastredis "github.com/Darkblade1995/gofast/gofast/revocation/redis"
 )
 
 type LoginInput struct {
