@@ -336,3 +336,13 @@ tagging).**
   note, not a bug — nothing to fix unless it happens)
 - Route registration is not concurrency-safe — documented via
   ADR 0002 as an intentional startup-only design constraint
+- Unknown `validate` rules are silently ignored by the generator —
+  a tag such as `validate:"oneof=admin member"` (not implemented
+  yet) or a typo such as `validate:"reqired"` generates no check
+  for that rule, and `Validate()` returns nil for the field. Since
+  the fix for friction #4 this no longer breaks compilation, but
+  it means a developer can believe a field is validated when it is
+  not. Found while writing `TestGeneratedValidateCompiles`. Not
+  fixed yet: whether the generator should fail loudly on unknown
+  rules is a design decision to settle together with the advanced
+  validation work, not a silent patch.
