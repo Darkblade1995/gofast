@@ -154,6 +154,20 @@ func (r *Router) OnShutdown(hook func(ctx context.Context) error) {
 // Logger) to apply those globally while still using Run's
 // lifecycle management. Using Run at all remains optional —
 // constructing an *http.Server manually is fully supported too.
+//
+// Run returns nil after a clean shutdown (SIGINT/SIGTERM or ctx
+// cancellation), so it must not be passed directly to log.Fatal:
+// log.Fatal exits with status 1 even when given nil. Check the
+// error instead:
+//
+//	if err := router.Run(ctx, ":8080", router); err != nil {
+//		log.Fatal(err)
+//	}
+//
+// A non-nil error means a startup hook failed, the listener
+// failed (for example, the address is already in use), Shutdown
+// timed out, or a shutdown hook failed.
+//
 // See ADR 0012.
 func (r *Router) Run(ctx context.Context, addr string, handler http.Handler) error {
 	for _, hook := range r.startupHooks {
