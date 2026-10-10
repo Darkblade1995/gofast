@@ -300,6 +300,35 @@ tagging).**
   moved to wrap the entire `UpdateAndSave` cycle. Verified clean
   under `-race`.
 
+- ~~`gofast generate` emitted generated files that did not
+  compile (unused imports, empty loops)~~ — RESOLVED:
+  `GenerateValidate` wrote `import ("fmt"; "strings")`
+  unconditionally, so any file whose rules did not need both
+  packages failed with `imported and not used`. The most common
+  case: any struct validated without the `email` rule (only
+  `required,min=3`) did not compile after `gofast generate`.
+  Found while consuming v0.2.1 as an external dependency from
+  TaskForge (friction #4, blocking). Investigating it exposed two
+  more bugs of the same family: `"fmt"` was also imported
+  unconditionally (a file with only unknown rules, such as
+  `oneof=...`, produced `imported and not used`), and
+  `dive`/`dive_key` with no emittable inner rule emitted an empty
+  `for idx, v := range x { }` loop, which fails with `declared and
+  not used`. Fix: emitters now record the packages they actually
+  use in an `importSet`, and the import block is built after
+  generation from that set (nothing is imported when nothing
+  needs it); a `dive` loop is only opened when its body is
+  non-empty. The pre-existing test only ran `format.Source`, which
+  checks syntax, not types, so it could never have caught this.
+  New test `TestGeneratedValidateCompiles` runs `go/types` over
+  the generated code (what the compiler checks) and covers four
+  cases: a control, no `email` rule, only unknown rules, and
+  `dive` with an unknown inner rule. Verified: the three failing
+  cases failed before the fix and pass after; `go test -race
+  ./...` clean; end-to-end with a temporary module reproducing
+  TaskForge's `CreateTeamInput`.
+
+
 
 ## Known risks (tracked, not yet resolved)
 - Codegen complexity may exceed initial estimate — if so, ADR 0001
